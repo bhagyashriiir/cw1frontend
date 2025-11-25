@@ -1,3 +1,4 @@
+<!-- Initial HTML layout structure created -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -27,8 +28,10 @@
         <div class="muted"><em>Select the Required Lessons and Add to Cart!</em></div>
       </div>
 
+      <!-- Search bar + Vue binding -->
       <div class="header-center">
         <!-- search as we type implemented in Vue below -->
+         <!-- Search bar with Vue v-model binding -->
         <input type="text" v-model="searchQuery" placeholder="Search" class="search-box"/>
       </div>
 
@@ -62,6 +65,7 @@
       <section class="lessons-section">
         <h3>Available Lessons ({{ lessons.length }})</h3>
         <div class="grid">
+          <!-- Dynamic lesson cards rendered with v-for -->
           <div class="card" v-for="lesson in sortedLessons" :key="lesson._id || lesson.id">
             <div class="lesson-info">
               <div class="lesson-text">
