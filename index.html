@@ -65,7 +65,7 @@
       <section class="lessons-section">
         <h3>Available Lessons ({{ lessons.length }})</h3>
         <div class="grid">
-          <!-- Dynamic lesson cards rendered with v-for -->
+          <!-- Dynamic lesson cards with v-for -->
           <div class="card" v-for="lesson in sortedLessons" :key="lesson._id || lesson.id">
             <div class="lesson-info">
               <div class="lesson-text">
