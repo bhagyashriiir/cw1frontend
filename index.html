@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>LessonFinder</title>
+
+  <!-- Vue 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+  <!-- API -->
+  <script src="api.js"></script>
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css"/>
+</head>
+
+<body>
+  <div id="app" class="container">
+    <header>
+      <div class="header-left">
+        <h1>~LessonFinder</h1>
+        <div class="muted"><em>Select the Required Lessons and Add to Cart!</em></div>
+      </div>
+
+      <div class="header-center">
+        <!-- search as we type implemented in Vue below -->
+        <input type="text" v-model="searchQuery" placeholder="Search" class="search-box"/>
+      </div>
+
+      <div class="header-right">
+        <button @click="toggleCart" :disabled="cart.length === 0 && !orderPlaced">
+          <i class="fa fa-cart-plus"></i>
+          Cart
+          <span class="cart-count">{{ totalCartItems }}</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Lessons Page -->
+    <div class="content-layout" v-if="showLessons">
+      <div class="sort-panel">
+        <div class="sort-group">
+          <h4>Sort by</h4>
+          <label><input type="radio" value="subject" v-model="sortAttr"/> Subject</label>
+          <label><input type="radio" value="location" v-model="sortAttr"/> Location</label>
+          <label><input type="radio" value="price" v-model="sortAttr"/> Price</label>
+          <label><input type="radio" value="spaces" v-model="sortAttr"/> Availability</label>
+        </div>
+
+        <div class="sort-group">
+          <h4>Order</h4>
+          <label><input type="radio" value="asc" v-model="sortOrder"/> Ascending</label>
+          <label><input type="radio" value="desc" v-model="sortOrder"/> Descending</label>
+        </div>
+      </div>
+
+      <section class="lessons-section">
+        <h3>Available Lessons ({{ lessons.length }})</h3>
+        <div class="grid">
+          <div class="card" v-for="lesson in sortedLessons" :key="lesson._id || lesson.id">
+            <div class="lesson-info">
+              <div class="lesson-text">
+                <p>Subject: {{ lesson.subject }}</p>
+                <p>Location: {{ lesson.location }}</p>
+                <p>Price: £{{ Number(lesson.price).toFixed(2) }}</p>
+                <p>Spaces: {{ lesson.spaces }}</p>
+              </div>
+              <div class="lesson-icon">
+                <!-- icon stored as class string -->
+                <i :class="lesson.icon"></i>
+              </div>
+            </div>
+
+            <div class="rating">
+              <i v-for="n in 5" :key="n"
+                 :class="n <= (lesson.rating || 0) ? 'fa-solid fa-star' : 'fa-regular fa-star'">
+              </i>
+            </div>
+
+            <div class="cart-action">
+              <button :disabled="lesson.spaces === 0" @click="addToCart(lesson)">
+                <i class="fa fa-cart-plus"></i> Add to Cart
+              </button>
+              <span v-if="lesson.spaces === 0" class="stock-message out">All Out!</span>
+              <span v-else-if="lesson.spaces < 5" class="stock-message low">Only {{ lesson.spaces }} left!</span>
+              <span v-else class="stock-message available">Buy Now!</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Checkout Page -->
+    <section v-else>
+      <h3>Your Shopping Cart ({{ cart.length }})</h3>
+
+      <div v-if="cart.length === 0 && !orderPlaced" class="muted">
+        Cart is empty.
+        <br />
+        <button class="go-back-btn" @click="goBackToLessons">Go Back to Lessons</button>
+      </div>
+
+      <div v-else-if="cart.length > 0" class="grid">
+        <div class="card" v-for="item in cart" :key="item.cartId">
+          <div class="lesson-info">
+            <div class="lesson-text">
+              <p>Subject: {{ item.subject }}</p>
+              <p>Location: {{ item.location }}</p>
+              <p>Price: £{{ Number(item.price).toFixed(2) }}</p>
+              <p>Quantity: {{ item.quantity }}</p>
+              <p>Total: £{{ (item.price * item.quantity).toFixed(2) }}</p>
+            </div>
+            <div class="lesson-icon">
+              <i :class="lessons.find(l => (l._id || l.id) === item.lessonId)?.icon"></i>
+            </div>
+          </div>
+          <button @click="removeFromCart(item)" class="remove-btn">
+            <i class="fa fa-trash"></i> Remove
+          </button>
+        </div>
+      </div>
+
+      <div v-if="cart.length > 0 && !orderPlaced" class="checkout-section">
+        <h4>Checkout</h4>
+        <div class="form-row">
+          <input v-model="firstName" placeholder="First Name"/>
+          <input v-model="lastName" placeholder="Last Name"/>
+        </div>
+        <div class="form-row">
+          <input v-model="phone" placeholder="Phone Number"/>
+        </div>
+        <div class="form-row">
+          <input v-model="address" placeholder="Address"/>
+        </div>
+        <div class="form-row">
+          <input v-model="checkoutCity" placeholder="City (letters only)" />
+          <select v-model="checkoutState">
+            <option disabled value="">Select UK State</option>
+            <option>England</option>
+            <option>Scotland</option>
+            <option>Wales</option>
+            <option>Northern Ireland</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <input v-model="zip" placeholder="Zip / Postal Code" />
+        </div>
+
+        <div class="gift-options">
+          <input type="checkbox" id="gift" v-model="shipAsGift" />
+          <label for="gift">Ship As Gift?</label>
+        </div>
+
+        <div class="radio-options">
+          <label><input type="radio" value="Home" v-model="shippingType" /> Home</label>
+          <label><input type="radio" value="Business" v-model="shippingType" /> Business</label>
+        </div>
+
+        <div class="checkout-row">
+          <button class="checkout-btn" @click="submitOrder" :disabled="!canCheckout">
+            Checkout
+          </button>
+          <img src="http://localhost:3000/images/checkout.jpg" alt="Checkout Illustration" class="checkout-img" />
+        </div>
+      </div>
+
+      <div v-if="orderPlaced" class="checkout-summary">
+        <div class="tick-container">
+          <i class="fa fa-check-circle"></i>
+          <h2>Order Confirmed!</h2>
+        </div>
+
+        <div class="order-details">
+          <p><strong>First Name:</strong> {{ orderDetails.firstName }}</p>
+          <p><strong>Last Name:</strong> {{ orderDetails.lastName }}</p>
+          <p><strong>Address:</strong> {{ orderDetails.address }}</p>
+          <p><strong>City:</strong> {{ orderDetails.city }}</p>
+          <p><strong>State:</strong> {{ orderDetails.state }}</p>
+          <p><strong>Zip:</strong> {{ orderDetails.zip }}</p>
+          <p><strong>Shipping Method:</strong> {{ orderDetails.shippingType }}</p>
+          <p><strong>Gift Option:</strong> {{ orderDetails.giftOption }}</p>
+          <p><strong>Total:</strong> £{{ orderDetails.total }}</p>
+        </div>
+
+        <button class="go-back-btn" @click="goBackToLessons">Go Back to Lessons</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Vue App Script -->
+  <script>
+    const { createApp } = Vue;
+
+    createApp({
+      data() {
+        return {
+          showLessons: true,
+          sortAttr: 'price',
+          sortOrder: 'asc',
+          lessons: [],          // populated from backend
+          cart: [],
+          firstName: '',
+          lastName: '',
+          phone: '',
+          address: '',
+          checkoutCity: '',
+          checkoutState: '',
+          zip: '',
+          shipAsGift: false,
+          shippingType: 'Home',
+          orderPlaced: false,
+          orderDetails: {},
+          searchQuery: '',
+          searchTimeout: null   // for debounce
+        };
+      },
+
+      computed: {
+        // Use lessons already fetched from backend and filtered locally for sorts
+        sortedLessons() {
+          const query = this.searchQuery.trim().toLowerCase();
+          // we rely on backend search as we type but also keep local filter 
+          let filtered = this.lessons.filter(l => {
+            const subject = (l.subject || '').toString().toLowerCase();
+            const location = (l.location || '').toString().toLowerCase();
+            const price = (l.price || '').toString();
+            const spaces = (l.spaces || '').toString();
+            return (
+              subject.includes(query) ||
+              location.includes(query) ||
+              price.includes(query) ||
+              spaces.includes(query)
+            );
+          });
+
+          const order = this.sortOrder === 'asc' ? 1 : -1;
+          filtered.sort((a, b) => {
+            let A = a[this.sortAttr];
+            let B = b[this.sortAttr];
+            if (typeof A === 'string') A = A.toLowerCase();
+            if (typeof B === 'string') B = B.toLowerCase();
+            if (A < B) return -1 * order;
+            if (A > B) return 1 * order;
+            return 0;
+          });
+          return filtered;
+        },
+
+        totalCartItems() {
+          return this.cart.length;
+        },
+
+        cartTotal() {
+          return this.cart.reduce((s, i) => s + (i.price * i.quantity), 0);
+        },
+
+        canCheckout() {
+          const firstNameValid = /^[A-Za-z\s]+$/.test(this.firstName.trim());
+          const lastNameValid = /^[A-Za-z\s]+$/.test(this.lastName.trim());
+          const phoneValid = /^\d+$/.test(this.phone.trim());
+          const zipValid = /^\d{5,10}$/.test(this.zip.trim());
+          const cityValid = /^[A-Za-z\s]+$/.test(this.checkoutCity.trim());
+          const stateValid = this.checkoutState !== '';
+          return (
+            firstNameValid &&
+            lastNameValid &&
+            phoneValid &&
+            zipValid &&
+            this.address.trim() &&
+            cityValid &&
+            stateValid &&
+            this.cart.length > 0
+          );
+        }
+      },
+
+      methods: {
+        loadAllLessons() {
+          // Fetch all lessons from backend
+          getLessons()
+            .then(data => {
+              if (Array.isArray(data)) this.lessons = data;
+            })
+            .catch(err => console.error("loadAllLessons:", err));
+        },
+
+        // add exactly one lesson (reduce spaces by 1)
+        addToCart(lesson) {
+          if (!lesson || lesson.spaces === 0) return;
+
+          // reduce locally
+          lesson.spaces = Number(lesson.spaces) - 1;
+
+          // push cart item 
+          this.cart.push({
+            cartId: Date.now() + Math.random(),
+            lessonId: lesson._id || lesson.id,
+            subject: lesson.subject,
+            location: lesson.location,
+            price: lesson.price,
+            quantity: 1
+          });
+
+          // update backend spaces immediately (PUT)
+          const newSpaces = Number(lesson.spaces);
+          updateSpaces(lesson._id || lesson.id, newSpaces)
+            .catch(err => console.warn("Failed to update spaces on server (non-blocking)", err));
+        },
+
+        removeFromCart(item) {
+          const idx = this.cart.findIndex(i => i.cartId === item.cartId);
+          if (idx === -1) return;
+
+          // restore spaces locally
+          const lesson = this.lessons.find(l => (l._id || l.id) === item.lessonId);
+          if (lesson) {
+            lesson.spaces = Number(lesson.spaces) + 1;
+            // update backend
+            updateSpaces(lesson._id || lesson.id, lesson.spaces)
+              .catch(err => console.warn("Failed restore spaces on server (non-blocking)", err));
+          }
+          this.cart.splice(idx, 1);
+        },
+
+        toggleCart() {
+          this.showLessons = !this.showLessons;
+          // if going back to lessons, reload to refresh server state 
+          if (this.showLessons) this.loadAllLessons();
+        },
+
+        submitOrder() {
+          if (!this.canCheckout) return;
+          // Prepare order payload
+          const orderPayload = {
+            name: `${this.firstName} ${this.lastName}`.trim(),
+            phone: this.phone,
+            address: this.address,
+            city: this.checkoutCity,
+            state: this.checkoutState,
+            zip: this.zip,
+            giftOption: this.shipAsGift ? "Send as Gift" : "Do Not Send as Gift",
+            shippingType: this.shippingType,
+            items: this.cart.map(c => ({ lessonId: c.lessonId, quantity: c.quantity })),
+            total: this.cartTotal.toFixed(2),
+            createdAt: new Date().toISOString()
+          };
+
+          // Save order to backend
+          saveOrder(orderPayload)
+            .then(result => {
+              // show confirmation
+              this.orderDetails = {
+                firstName: this.firstName,
+                lastName: this.lastName,
+                address: this.address,
+                city: this.checkoutCity,
+                state: this.checkoutState,
+                zip: this.zip,
+                shippingType: this.shippingType,
+                giftOption: this.shipAsGift ? "Send as Gift" : "Do Not Send as Gift",
+                total: this.cartTotal.toFixed(2)
+              };
+              this.orderPlaced = true;
+              this.showLessons = false;
+              this.cart = [];
+              this.firstName = '';
+              this.lastName = '';
+              this.phone = '';
+              this.address = '';
+              this.checkoutCity = '';
+              this.checkoutState = '';
+              this.zip = '';
+              this.shipAsGift = false;
+              this.shippingType = 'Home';
+            })
+            .catch(err => {
+              console.error("Failed to save order:", err);
+              alert("Failed to submit order. Check console for details.");
+            });
+        },
+
+        goBackToLessons() {
+          this.orderPlaced = false;
+          this.showLessons = true;
+          this.loadAllLessons();
+        },
+
+        // Called as user types (debounced)
+        handleSearchInput() {
+          // Debounce 300ms
+          clearTimeout(this.searchTimeout);
+          this.searchTimeout = setTimeout(() => {
+            const q = this.searchQuery.trim();
+            if (q === "") {
+              // if empty, reload all lessons
+              this.loadAllLessons();
+            } else {
+              // call backend search route
+              searchLessons(q)
+                .then(results => {
+                  if (Array.isArray(results)) this.lessons = results;
+                })
+                .catch(err => console.warn("search failed:", err));
+            }
+          }, 300);
+        }
+      },
+
+      watch: {
+        // watch searchQuery for search as we type
+        searchQuery() {
+          this.handleSearchInput();
+        }
+      },
+
+      created() {
+        // initial data load
+        this.loadAllLessons();
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
