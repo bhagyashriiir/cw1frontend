@@ -1,5 +1,4 @@
-// API helper file for backend requests
-const BASE = "https://cwbackend-4yel.onrender.com";
+const BASE = "https://cwbackend-4yel.onrender.com";  // root API not /lessons
 
 // GET all lessons
 async function getLessons() {
@@ -7,7 +6,7 @@ async function getLessons() {
   return res.json();
 }
 
-// PUT update lesson spaces
+// UPDATE spaces
 async function updateSpaces(id, spaces) {
   const res = await fetch(`${BASE}/lessons/${id}`, {
     method: "PUT",
@@ -17,13 +16,13 @@ async function updateSpaces(id, spaces) {
   return res.json();
 }
 
-// Search lessons
+// SEARCH lessons
 async function searchLessons(q) {
   const res = await fetch(`${BASE}/search?q=` + encodeURIComponent(q));
   return res.json();
 }
 
-// POST save an order
+// SAVE ORDER
 async function saveOrder(order) {
   const res = await fetch(`${BASE}/orders`, {
     method: "POST",
