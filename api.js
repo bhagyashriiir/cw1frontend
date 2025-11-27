@@ -1,5 +1,5 @@
 // API helper file for backend requests
-const BASE = "http://localhost:3000";
+const baseURL = "https://cwbackend-4yel.onrender.com";
 
 // Fetch functions integrated for lesson operations
 // GET all lessons
