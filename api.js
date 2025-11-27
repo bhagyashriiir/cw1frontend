@@ -1,12 +1,13 @@
-const BASE = "https://cwbackend-4yel.onrender.com";  // root API not /lessons
+// Base Backend URL
+const BASE = "https://cwbackend-4yel.onrender.com";
 
-// GET all lessons
+// Get all lessons
 async function getLessons() {
   const res = await fetch(`${BASE}/lessons`);
   return res.json();
 }
 
-// UPDATE spaces
+// Update lesson spaces
 async function updateSpaces(id, spaces) {
   const res = await fetch(`${BASE}/lessons/${id}`, {
     method: "PUT",
@@ -16,13 +17,13 @@ async function updateSpaces(id, spaces) {
   return res.json();
 }
 
-// SEARCH lessons
+// Search by query string
 async function searchLessons(q) {
-  const res = await fetch(`${BASE}/search?q=` + encodeURIComponent(q));
+  const res = await fetch(`${BASE}/search?q=${encodeURIComponent(q)}`);
   return res.json();
 }
 
-// SAVE ORDER
+// Save order
 async function saveOrder(order) {
   const res = await fetch(`${BASE}/orders`, {
     method: "POST",
